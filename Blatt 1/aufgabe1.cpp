@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <vector>
+#include <string>
+#include <fstream>
 
 class Edge {
 public:
@@ -19,6 +21,7 @@ private:
 class Graph {
 public:
   Graph(unsigned int nodeCount);
+  Graph(std::string filename);
   void addEdge(unsigned int a, unsigned int b, unsigned int cost);
   unsigned int getNodeCount();
   friend std::ostream& operator<<(std::ostream& out, const Graph& o);
@@ -59,6 +62,21 @@ Graph::Graph(unsigned int nodeCount) {
   this->edges = std::vector<Edge>();
 }
 
+// Parses a graph file and constructs the graph
+Graph::Graph(std::string filename) {
+  std::fstream file(filename, std::ios_base::in);
+
+  // Set Node Count of the Graph
+  unsigned int nodeCount;
+  file >> nodeCount;
+  this->nodeCount = nodeCount;
+
+  unsigned int a, b, cost;
+  while (file >> a >> b >> cost) {
+    this->addEdge(a, b, cost);
+  }
+}
+
 // Adds an edge to the graph
 void Graph::addEdge(unsigned int a, unsigned int b, unsigned int cost) {
   Edge e = Edge(a, b, cost);
@@ -73,14 +91,13 @@ unsigned int Graph::getNodeCount() {
 std::ostream& operator<<(std::ostream& out, const Graph& o) {
   out << "Node count:" << o.nodeCount << "\n";
   for (Edge e : o.edges) {
-    out << "Edge from \t" << e.getA() << "\t to \t" << e.getB() << "\t with cost \t" << e.getCost();
+    out << "Edge from \t" << e.getA() << "\t to \t" << e.getB() << "\t with cost \t" << e.getCost() << "\n";
   }
   return out;
 }
 
 int main() {
-  Graph g = Graph(2);
-  g.addEdge(1, 0, 100);
+  Graph g("inst1.txt");
 
   std::cout << g << '\n';
 }
