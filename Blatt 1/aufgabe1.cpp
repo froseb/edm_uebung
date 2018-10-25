@@ -63,23 +63,28 @@ UnionFindData::UnionFindData(unsigned int prev) {
   this->rank = 0;
 }
 
+// returns the previous element of the tree element
 unsigned int UnionFindData::getPrev() {
   return prev;
 }
 
+// returns the rank of the tree element
 unsigned int UnionFindData::getRank() {
   return rank;
 }
 
+// sets the previous element of the union find tree
 void UnionFindData::setPrev(unsigned int a) {
   prev = a;
 }
 
+// increases the rank of the data object
 void UnionFindData::incrRank() {
   rank++;
 }
 
 UnionFind::UnionFind(unsigned int size) {
+  // for every number from 0 to size-1, store a data object
   elements = std::vector<UnionFindData>();
   for (unsigned int i = 0; i<size; i++) {
     UnionFindData data(i);
@@ -126,14 +131,17 @@ Edge::Edge(unsigned int a, unsigned int b, unsigned int cost) {
   this->cost = cost;
 }
 
+// Returns the first connected node
 unsigned int Edge::getA() {
   return a;
 }
 
+// Returns the second connected node
 unsigned int Edge::getB() {
   return b;
 }
 
+// Returns the cost of the edge
 unsigned int Edge::getCost() {
   return cost;
 }
@@ -153,6 +161,7 @@ Graph::Graph(std::string filename) {
   file >> nodeCount;
   this->nodeCount = nodeCount;
 
+  // Parses edges from the file
   unsigned int a, b, cost;
   while (file >> a >> b >> cost) {
     this->addEdge(a, b, cost);
@@ -165,6 +174,7 @@ void Graph::addEdge(unsigned int a, unsigned int b, unsigned int cost) {
   edges.push_back(e);
 }
 
+// Adds an edge to the graph
 void Graph::addEdge(Edge e) {
   edges.push_back(e);
 }
@@ -174,6 +184,7 @@ unsigned int Graph::getNodeCount() {
   return nodeCount;
 }
 
+// Compares the cost values of two edges
 bool cmp(Edge a, Edge b) {
   return a.getCost() < b.getCost();
 }
@@ -192,7 +203,7 @@ std::ostream& operator<<(std::ostream& out, const Graph& o) {
   return out;
 }
 
-// Kruskal algorithm to find a MST
+// Returns a MST of the graph using kruskal algorithm with union find data structure
 Graph Graph::kruskal() {
 
   // resulting graph
@@ -203,6 +214,7 @@ Graph Graph::kruskal() {
 
   // sort edges by cost
   sortEdges();
+  
   for (Edge e : edges) {
     if (uf.find(e.getA()) != uf.find(e.getB())) {
       res.addEdge(e);
