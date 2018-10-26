@@ -32,14 +32,14 @@ private:
 // Class for an edge
 class Edge {
 public:
-  Edge(unsigned int a, unsigned int b, unsigned int cost);
+  Edge(unsigned int a, unsigned int b, int cost);
   unsigned int getA();
   unsigned int getB();
-  unsigned int getCost();
+  int getCost();
 private:
   unsigned int a;
   unsigned int b;
-  unsigned int cost;
+  int cost;
 };
 
 // Class for a graph
@@ -47,9 +47,10 @@ class Graph {
 public:
   Graph(unsigned int nodeCount);
   Graph(std::string filename);
-  void addEdge(unsigned int a, unsigned int b, unsigned int cost);
+  void addEdge(unsigned int a, unsigned int b, int cost);
   void addEdge(Edge e);
   unsigned int getNodeCount();
+  unsigned int getEdgeCount();
   void sortEdges();
   Graph kruskal();
   friend std::ostream& operator<<(std::ostream& out, const Graph& o);
@@ -118,7 +119,7 @@ void UnionFind::un(unsigned int a, unsigned int b) {
 }
 
 // Constuctor, initializes the edge
-Edge::Edge(unsigned int a, unsigned int b, unsigned int cost) {
+Edge::Edge(unsigned int a, unsigned int b, int cost) {
   // a should be smaller than be
   if (a <= b) {
     this->a = a;
@@ -142,7 +143,7 @@ unsigned int Edge::getB() {
 }
 
 // Returns the cost of the edge
-unsigned int Edge::getCost() {
+int Edge::getCost() {
   return cost;
 }
 
@@ -164,12 +165,12 @@ Graph::Graph(std::string filename) {
   // Parses edges from the file
   unsigned int a, b, cost;
   while (file >> a >> b >> cost) {
-    this->addEdge(a, b, cost);
+    addEdge(a, b, cost);
   }
 }
 
 // Adds an edge to the graph
-void Graph::addEdge(unsigned int a, unsigned int b, unsigned int cost) {
+void Graph::addEdge(unsigned int a, unsigned int b, int cost) {
   Edge e = Edge(a, b, cost);
   edges.push_back(e);
 }
@@ -182,6 +183,11 @@ void Graph::addEdge(Edge e) {
 // Returns the node count of the graph
 unsigned int Graph::getNodeCount() {
   return nodeCount;
+}
+
+// Returns the edge count of the graph
+unsigned int Graph::getEdgeCount() {
+  return edges.size();
 }
 
 // Compares the cost values of two edges
@@ -214,11 +220,16 @@ Graph Graph::kruskal() {
 
   // sort edges by cost
   sortEdges();
-  
+
   for (Edge e : edges) {
     if (uf.find(e.getA()) != uf.find(e.getB())) {
       res.addEdge(e);
       uf.un(e.getA(), e.getB());
+    }
+
+    // if res is a tree, we are done
+    if(res.getEdgeCount() == getNodeCount()-1) {
+      return res;
     }
   }
 
@@ -239,9 +250,17 @@ int main() {
   Graph res = g.kruskal();
 
   if (outputfile == "c") {
-    std::cout << res << '\n';
+    if (res.getEdgeCount() != res.getNodeCount()-1) {
+      std::cout << "The graph is not connected." << "\n";
+    } else {
+      std::cout << res << '\n';
+    }
   } else {
-    std::fstream file(outputfile, std::ios_base::out);
-    file << res;
+    if (res.getEdgeCount() != res.getNodeCount()-1) {
+      std::cout << "The graph is not connected." << "\n";
+    } else {
+      std::fstream file(outputfile, std::ios_base::out);
+      file << res;
+    }
   }
 }
