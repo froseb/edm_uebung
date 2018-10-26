@@ -51,17 +51,19 @@ public:
   void addEdge(Edge e);
   unsigned int getNodeCount();
   unsigned int getEdgeCount();
+  long long int getWeight();
   void sortEdges();
   Graph kruskal();
   friend std::ostream& operator<<(std::ostream& out, const Graph& o);
 private:
   unsigned int nodeCount;
   std::vector<Edge> edges;
+  long long int weight;
 };
 
 UnionFindData::UnionFindData(unsigned int prev) {
   this->prev = prev;
-  this->rank = 0;
+  rank = 0;
 }
 
 // returns the previous element of the tree element
@@ -150,7 +152,8 @@ int Edge::getCost() {
 // Constructor, initializes the graph
 Graph::Graph(unsigned int nodeCount) {
   this->nodeCount = nodeCount;
-  this->edges = std::vector<Edge>();
+  edges = std::vector<Edge>();
+  weight = 0;
 }
 
 // Parses a graph file and constructs the graph
@@ -161,6 +164,8 @@ Graph::Graph(std::string filename) {
   unsigned int nodeCount;
   file >> nodeCount;
   this->nodeCount = nodeCount;
+
+  weight = 0;
 
   // Parses edges from the file
   unsigned int a, b, cost;
@@ -173,11 +178,13 @@ Graph::Graph(std::string filename) {
 void Graph::addEdge(unsigned int a, unsigned int b, int cost) {
   Edge e = Edge(a, b, cost);
   edges.push_back(e);
+  weight += cost;
 }
 
 // Adds an edge to the graph
 void Graph::addEdge(Edge e) {
   edges.push_back(e);
+  weight += e.getCost();
 }
 
 // Returns the node count of the graph
@@ -188,6 +195,11 @@ unsigned int Graph::getNodeCount() {
 // Returns the edge count of the graph
 unsigned int Graph::getEdgeCount() {
   return edges.size();
+}
+
+// Returns the sum of all edge cost values
+long long int Graph::getWeight() {
+  return weight;
 }
 
 // Compares the cost values of two edges
@@ -203,6 +215,7 @@ void Graph::sortEdges() {
 // custom output for graphs (for printing)
 std::ostream& operator<<(std::ostream& out, const Graph& o) {
   out << "Node count: " << o.nodeCount << "\n";
+  out << "Weight: " << o.weight << "\n";
   for (Edge e : o.edges) {
     out << "{" << e.getA() << ", " << e.getB() << "}\t with cost \t" << e.getCost() << "\n";
   }
