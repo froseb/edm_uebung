@@ -1,4 +1,5 @@
 // Implementation of Kruskal algorithm
+// Requires c++11 standard for compiling
 
 #include <iostream>
 #include <vector>
@@ -45,15 +46,17 @@ private:
 // Class for a graph
 class Graph {
 public:
+  Graph();
   Graph(unsigned int nodeCount);
   Graph(std::string filename);
   void addEdge(unsigned int a, unsigned int b, int cost);
   void addEdge(Edge e);
   unsigned int getNodeCount();
+  void initGraph(unsigned int nc);
   unsigned int getEdgeCount();
   long long int getWeight();
   void sortEdges();
-  Graph kruskal();
+  void kruskal(Graph& res);
   friend std::ostream& operator<<(std::ostream& out, const Graph& o);
 private:
   unsigned int nodeCount;
@@ -61,8 +64,8 @@ private:
   long long int weight;
 };
 
-UnionFindData::UnionFindData(unsigned int prev) {
-  this->prev = prev;
+UnionFindData::UnionFindData(unsigned int pr) {
+  prev = pr;
   rank = 0;
 }
 
@@ -87,8 +90,8 @@ void UnionFindData::incrRank() {
 }
 
 UnionFind::UnionFind(unsigned int size) {
+  elements.reserve(size);
   // for every number from 0 to size-1, store a data object
-  elements = std::vector<UnionFindData>();
   for (unsigned int i = 0; i<size; i++) {
     UnionFindData data(i);
     elements.push_back(data);
@@ -97,11 +100,10 @@ UnionFind::UnionFind(unsigned int size) {
 
 // find function
 unsigned int UnionFind::find(unsigned int a) {
-  unsigned int v = a;
-  if (elements[v].getPrev() != v) {
-    elements[v].setPrev(find(elements[v].getPrev()));
+  if (elements[a].getPrev() != a) {
+    elements[a].setPrev(find(elements[a].getPrev()));
   }
-  return elements[v].getPrev();
+  return elements[a].getPrev();
 }
 
 // union function
@@ -121,17 +123,17 @@ void UnionFind::un(unsigned int a, unsigned int b) {
 }
 
 // Constuctor, initializes the edge
-Edge::Edge(unsigned int a, unsigned int b, int cost) {
+Edge::Edge(unsigned int pa, unsigned int pb, int c) {
   // a should be smaller than be
-  if (a <= b) {
-    this->a = a;
-    this->b = b;
+  if (pa <= pb) {
+    a = pa;
+    b = pb;
   } else {
-    this->a = b;
-    this->b = a;
+    a = pb;
+    b = pa;
   }
 
-  this->cost = cost;
+  cost = c;
 }
 
 // Returns the first connected node
@@ -149,10 +151,14 @@ int Edge::getCost() {
   return cost;
 }
 
+Graph::Graph() {
+  nodeCount = 0;
+  weight = 0;
+}
+
 // Constructor, initializes the graph
-Graph::Graph(unsigned int nodeCount) {
-  this->nodeCount = nodeCount;
-  edges = std::vector<Edge>();
+Graph::Graph(unsigned int nc) {
+  nodeCount = nc;
   weight = 0;
 }
 
@@ -161,9 +167,9 @@ Graph::Graph(std::string filename) {
   std::fstream file(filename, std::ios_base::in);
 
   // Set Node Count of the Graph
-  unsigned int nodeCount;
-  file >> nodeCount;
-  this->nodeCount = nodeCount;
+  unsigned int nc;
+  file >> nc;
+  nodeCount = nc;
 
   weight = 0;
 
@@ -176,20 +182,37 @@ Graph::Graph(std::string filename) {
 
 // Adds an edge to the graph
 void Graph::addEdge(unsigned int a, unsigned int b, int cost) {
-  Edge e = Edge(a, b, cost);
-  edges.push_back(e);
-  weight += cost;
+  if (a < getNodeCount() && b < getNodeCount()) {
+    Edge e(a, b, cost);
+    edges.push_back(e);
+    weight += cost;
+  } else {
+    std::cout << "Wrong use of addEdge." << '\n';
+  }
 }
 
 // Adds an edge to the graph
 void Graph::addEdge(Edge e) {
-  edges.push_back(e);
-  weight += e.getCost();
+  if (e.getA() < getNodeCount() && e.getB() < getNodeCount()) {
+    edges.push_back(e);
+    weight += e.getCost();
+  } else {
+    std::cout << "Wrong use of addEdge." << '\n';
+  }
 }
 
 // Returns the node count of the graph
 unsigned int Graph::getNodeCount() {
   return nodeCount;
+}
+
+// Sets the node Count if the graph is empty
+void Graph::initGraph(unsigned int nc) {
+  if (getNodeCount() == 0) {
+    nodeCount = nc;
+  } else {
+    std::cout << "Wrong use of setNodeCount." << '\n';
+  }
 }
 
 // Returns the edge count of the graph
@@ -222,16 +245,12 @@ std::ostream& operator<<(std::ostream& out, const Graph& o) {
   return out;
 }
 
-// Returns a MST of the graph using kruskal algorithm with union find data structure
-Graph Graph::kruskal() {
-
-  // resulting graph
-  Graph res(getNodeCount());
-
-  // union find object
+// Makes res an MST of the graph using kruskal algorithm with union find data structure
+// res has to be empty
+void Graph::kruskal(Graph& res) {
+  res.initGraph(getNodeCount());
   UnionFind uf(getNodeCount());
 
-  // sort edges by cost
   sortEdges();
 
   for (Edge e : edges) {
@@ -242,11 +261,9 @@ Graph Graph::kruskal() {
 
     // if res is a tree, we are done
     if(res.getEdgeCount() == getNodeCount()-1) {
-      return res;
+      return;
     }
   }
-
-  return res;
 }
 
 int main() {
@@ -260,7 +277,8 @@ int main() {
 
   Graph g(filename);
 
-  Graph res = g.kruskal();
+  Graph res;
+  g.kruskal(res);
 
   if (outputfile == "c") {
     if (res.getEdgeCount() != res.getNodeCount()-1) {
