@@ -166,6 +166,14 @@ Graph::Graph(unsigned int nc) {
 Graph::Graph(std::string filename) {
   std::fstream file(filename, std::ios_base::in);
 
+  // Check if file is open
+  if (!file.is_open()) {
+    nodeCount = 0;
+    weight = 0;
+    std::cout << "Input file does not exist." << '\n';
+    return;
+  }
+
   // Set Node Count of the Graph
   unsigned int nc;
   file >> nc;
@@ -266,16 +274,25 @@ void Graph::kruskal(Graph& res) {
   }
 }
 
-int main() {
+int main(int argc, char** argv) {
   std::string filename;
   std::string outputfile;
 
-  std::cout << "Please enter a source filename:" << '\n';
-  std::cin >> filename;
+  if (argc <= 1) {
+    std::cout << "Please enter a source filename:" << '\n';
+    std::cin >> filename;
+  } else {
+    filename.append(argv[1]);
+  }
+
   std::cout << "Please enter an output filename or \"c\" for console output:" << '\n';
   std::cin >> outputfile;
 
   Graph g(filename);
+
+  if (g.getNodeCount() == 0) {
+    return 0;
+  }
 
   Graph res;
   g.kruskal(res);
@@ -294,4 +311,6 @@ int main() {
       file << res;
     }
   }
+
+  return 0;
 }
