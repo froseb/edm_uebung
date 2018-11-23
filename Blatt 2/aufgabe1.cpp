@@ -1,9 +1,11 @@
 /*
  * Implementation of the Goldberg-Tarjan Push-Relabel algorithm
+ * Requires c++11 standard for compiling
  */
 
 #include <iostream>
 #include <vector>
+#include <list>
 #include <fstream>
 
 // Class for a graph
@@ -12,18 +14,24 @@ public:
   class Edge;
   class Node;
 
+  void setFlow(Edge& e, unsigned int fl);
+  void addOutEdge(Node& n, unsigned int e);
+  void addInEdge(Node& n, unsigned int e);
+
   // An edge in the graph between two nodes
   class Edge {
   public:
-    Edge(Node *a, Node *b, unsigned int capacity);
-    Node *getA();
-    Node *getB();
+    Edge(unsigned int a, unsigned int b, unsigned int capacity, unsigned int id);
+    unsigned int getId();
+    unsigned int getA();
+    unsigned int getB();
     unsigned int getCapacity();
     unsigned int getFlow();
-    void setFlow(unsigned int fl);
+    friend void Graph::setFlow(Edge& e, unsigned int fl);
   private:
-    Node *a;
-    Node *b;
+    unsigned int id;
+    unsigned int a;
+    unsigned int b;
     unsigned int capacity;
     unsigned int flow = 0;
   };
@@ -31,31 +39,32 @@ public:
   // A node in the graph
   class Node {
   public:
-    Node();
-    void addOutEdge(Edge *e);
-    void addInEdge(Edge *e);
-    std::vector<Edge *> getOutEdges();
-    std::vector<Edge *> getInEdges();
-    void relabel();
-    void setLabel(unsigned int label);
-    unsigned int getLabel();
-    friend void Edge::setFlow(unsigned int fl);
+    Node(unsigned int id);
+    unsigned int getId();
+    friend void Graph::addOutEdge(Node& n, unsigned int e);
+    friend void Graph::addInEdge(Node& n, unsigned int e);
+    std::vector<unsigned int> getOutEdges();
+    std::vector<unsigned int> getInEdges();
+    unsigned long long int getOutFlow();
+    unsigned long long int getInFlow();
+    friend void Graph::setFlow(Edge& e, unsigned int fl);
   private:
-    unsigned int label = 0;
+    unsigned int id;
     unsigned long long int inFlow = 0;
     unsigned long long int outFlow = 0;
-    std::vector<Edge *> inEdges;
-    std::vector<Edge *> outEdges;
+    std::vector<unsigned int> inEdges;
+    std::vector<unsigned int> outEdges;
   };
 
   Graph(unsigned int nodeCount);
   Graph(std::string filename);
-  void addEdge(Node *a, Node *b, unsigned int capacity);
+  void addEdge(unsigned int a, unsigned int b, unsigned int capacity);
   unsigned int getNodeCount();
   unsigned int getEdgeCount();
   Node& getNode(unsigned int a);
   Edge& getEdge(unsigned int a);
   void pushRelabel();
+  void exportFlow(std::ostream& out);
   friend std::ostream& operator<<(std::ostream& out, const Graph& o);
 private:
   unsigned int nodeCount;
@@ -63,17 +72,22 @@ private:
   std::vector<Edge> edges;
 };
 
-Graph::Edge::Edge(Graph::Node *a, Graph::Node *b, unsigned int capacity) {
+Graph::Edge::Edge(unsigned int a, unsigned int b, unsigned int capacity, unsigned int id) {
+  this->id = id;
   this->a = a;
   this->b = b;
   this->capacity = capacity;
 }
 
-Graph::Node *Graph::Edge::getA() {
+unsigned int Graph::Edge::getId() {
+  return id;
+}
+
+unsigned int Graph::Edge::getA() {
   return a;
 }
 
-Graph::Node *Graph::Edge::getB() {
+unsigned int Graph::Edge::getB() {
   return b;
 }
 
@@ -85,43 +99,55 @@ unsigned int Graph::Edge::getFlow() {
   return flow;
 }
 
-void Graph::Edge::setFlow(unsigned int fl) {
-  unsigned int oldflow = fl;
-  flow = fl;
-  getA()->outFlow -= oldflow;
-  getA()->outFlow += fl;
-  getB()->inFlow -= oldflow;
-  getB()->outFlow += fl;
+void Graph::setFlow(Edge& e, unsigned int fl) {
+  unsigned int oldflow = e.getFlow();
+  e.flow = fl;
+
+  Node& a = getNode(e.getA());
+  Node& b = getNode(e.getB());
+
+  a.outFlow -= oldflow;
+  a.outFlow += fl;
+  b.inFlow -= oldflow;
+  b.inFlow += fl;
 }
 
-Graph::Node::Node() { }
-
-void Graph::Node::addOutEdge(Edge *e) {
-  outEdges.push_back(e);
-  outFlow += e->getFlow();
+Graph::Node::Node(unsigned int id) {
+  this->id = id;
 }
 
-void Graph::Node::addInEdge(Edge *e) {
-  inEdges.push_back(e);
-  inFlow += e->getFlow();
+unsigned int Graph::Node::getId() {
+  return id;
+}
+
+void Graph::addOutEdge(Graph::Node& n, unsigned int e) {
+  n.outEdges.push_back(e);
+  n.outFlow += getEdge(e).getFlow();
+}
+
+void Graph::addInEdge(Graph::Node& n, unsigned int e) {
+  n.inEdges.push_back(e);
+  n.inFlow += getEdge(e).getFlow();
 }
 
 // Gets the edges going out
-std::vector<Graph::Edge *> Graph::Node::getOutEdges() {
+std::vector<unsigned int> Graph::Node::getOutEdges() {
   return outEdges;
 }
 
 // Gets the edges going in
-std::vector<Graph::Edge *> Graph::Node::getInEdges() {
+std::vector<unsigned int> Graph::Node::getInEdges() {
   return inEdges;
 }
 
-unsigned int Graph::Node::getLabel() {
-  return label;
+// Gets the flow out of the edge
+unsigned long long int Graph::Node::getOutFlow() {
+  return outFlow;
 }
 
-void Graph::Node::setLabel(unsigned int label) {
-  this->label = label;
+// Gets the flow into the edge
+unsigned long long int Graph::Node::getInFlow() {
+  return inFlow;
 }
 
 // Constructor, initializes the graph
@@ -131,7 +157,7 @@ Graph::Graph(unsigned int nc) {
   // Add node objects to nodes vector
   nodes.reserve(nc);
   for (unsigned int i = 0; i < nc; i++) {
-    nodes.push_back(Node());
+    nodes.push_back(Node(i));
   }
 }
 
@@ -154,22 +180,22 @@ Graph::Graph(std::string filename) {
   // Add node objects to nodes vector
   nodes.reserve(nc);
   for (unsigned int i = 0; i < nc; i++) {
-    nodes.push_back(Node());
+    nodes.push_back(Node(i));
   }
 
   // Parses edges from the file
   unsigned int a, b, capacity;
   while (file >> a >> b >> capacity) {
-    addEdge(&getNode(a), &getNode(b), capacity);
+    addEdge(a, b, capacity);
   }
 }
 
 // Adds an edge to the graph
-void Graph::addEdge(Graph::Node *a, Graph::Node *b, unsigned int capacity) {
-  Edge e(a, b, capacity);
+void Graph::addEdge(unsigned int a, unsigned int b, unsigned int capacity) {
+  Edge e(a, b, capacity, edges.size());
   edges.push_back(e);
-  a->addOutEdge(&edges.back());
-  b->addInEdge(&edges.back());
+  addOutEdge(getNode(a), e.getId());
+  addInEdge(getNode(b), e.getId());
 }
 
 // Gets the node count of the graph
@@ -200,25 +226,183 @@ Graph::Edge& Graph::getEdge(unsigned int a) {
 
 // Push relabel algorithm
 void Graph::pushRelabel() {
-  Node& s = getNode(0);
-  Node& t = getNode(1);
+  // Maps a node id to a label
+  std::vector<unsigned int> labels(getNodeCount());
+  labels[0] = getNodeCount();
 
-  s.setLabel(getNodeCount());
+  // Stores allowed edges in the residual graph for each node
+  std::vector<std::list<unsigned int>> allowedEdges(getNodeCount());
 
-  // Maximize flow of edges adjacent to s
-  for (Edge *e : s.getOutEdges()) {
-    e->setFlow(e->getCapacity());
+  // Bucket for active nodes with the same label value
+  unsigned int maxLabel = 0;
+  std::vector<std::list<unsigned int>> labelBucket(2*getNodeCount()-1);
+
+  Node &s = getNode(0);
+
+  // Maximize flow of edges adjacent to s and store their heads as active nodes
+  for (unsigned int e : s.getOutEdges()) {
+    setFlow(getEdge(e), getEdge(e).getCapacity());
+    if (getEdge(e).getFlow() > 0) {
+      labelBucket[0].push_back(getEdge(e).getB());
+    }
+  }
+
+  // While we have active nodes
+  while(maxLabel != 0 || !(labelBucket[0].empty())) {
+    if (labelBucket[maxLabel].empty()) {
+      maxLabel--;
+      continue;
+    }
+
+    // Get the active node
+    Node& active = getNode(labelBucket[maxLabel].front());
+    if (allowedEdges[active.getId()].empty()) {
+      // relabel has to be done
+
+      unsigned int minimumLabel = 2*getNodeCount(); // will be made smaller
+      // search minimum label adjacent to the node in residual graph
+      for (unsigned int e : active.getOutEdges()) {
+        // Check if the edge is in the residual graph
+        if (getEdge(e).getFlow() < getEdge(e).getCapacity()) {
+          // Is the label smaller than the ones found?
+          if (labels[getEdge(e).getB()] < minimumLabel) {
+            minimumLabel = labels[getEdge(e).getB()];
+          }
+        }
+      }
+      for (unsigned int e : active.getInEdges()) {
+        // Check if the edge is in the residual graph
+        if (getEdge(e).getFlow() > 0) {
+          // Is the label smaller than the ones found?
+          if (labels[getEdge(e).getA()] < minimumLabel) {
+            minimumLabel = labels[getEdge(e).getA()];
+          }
+        }
+      }
+
+      // Update label of the active node
+      labels[active.getId()] = minimumLabel + 1;
+
+      // Update list of allowed edges
+      // Incoming edges in the residual graph may have become not allowed because
+      // of the increased label of the active note. Therefore, it has to be checked,
+      // whether an edge in the allowedEdges ist really is allowed!
+
+      // clear the list
+      allowedEdges[active.getId()].clear();
+
+      for (unsigned int e : active.getOutEdges()) {
+        // Check if the edge is in the residual graph
+        if (getEdge(e).getFlow() < getEdge(e).getCapacity()) {
+          // check if the edge is allowed
+          if (labels[active.getId()] == labels[getEdge(e).getB()]+1) {
+            allowedEdges[active.getId()].push_back(e);
+          }
+        }
+      }
+      for (unsigned int e : active.getInEdges()) {
+        // Check if the edge is in the residual graph
+        if (getEdge(e).getFlow() > 0) {
+          // Check if the edge is allowed
+          if (labels[active.getId()] == labels[getEdge(e).getA()]+1) {
+            allowedEdges[active.getId()].push_back(e);
+          }
+        }
+      }
+
+      // Label bucket has to be updated
+
+      // Delete first item of the old bucket
+      labelBucket[maxLabel].pop_front();
+
+      // Add the active node to the new bucket
+      labelBucket[labels[active.getId()]].push_back(active.getId());
+
+
+      maxLabel = labels[active.getId()];
+    } else {
+      // Push can be done
+      Edge& allowed = getEdge(allowedEdges[active.getId()].front());
+
+      // Check if the edge is really allowed, see comment in relabel
+      if ((active.getId() == allowed.getA() && labels[active.getId()] != labels[allowed.getB()]+1) ||
+        (active.getId() == allowed.getB() && labels[active.getId()] != labels[allowed.getA()]+1)) {
+        // the edge is not allowed and has to be removed
+        allowedEdges[active.getId()].pop_front();
+        continue;
+      }
+
+      // The excess of the active node
+      unsigned int excess = active.getInFlow() - active.getOutFlow();
+
+
+      // Which kind of residual edge?
+      if (active.getId() == allowed.getA()) {
+        // Is the push saturating? Has the active state to be updated?
+        if (excess > allowed.getCapacity()-allowed.getFlow()) {
+          setFlow(allowed, allowed.getCapacity());
+          // The edge does not exist any more in the residual graph
+          allowedEdges[active.getId()].pop_front();
+        } else {
+          setFlow(allowed, allowed.getFlow() + excess);
+          // The node is no longer active
+          labelBucket[maxLabel].pop_front();
+        }
+        // We created a new active node if allowed is not connected to t
+        if (allowed.getB() > 1) {
+          labelBucket[labels[allowed.getB()]].push_back(allowed.getB());
+        }
+      } else {
+        // Is the push saturating? Has the active state to be updated?
+        if (excess > allowed.getFlow()) {
+          setFlow(allowed, 0);
+          // The edge does not exist any more in the residual graph
+          allowedEdges[active.getId()].pop_front();
+        } else {
+          setFlow(allowed, allowed.getFlow() - excess);
+          // The node is no longer active
+          labelBucket[maxLabel].pop_front();
+        }
+        // We created a new active node if allowed is not connected to t
+        if (allowed.getA() > 1) {
+          labelBucket[labels[allowed.getA()]].push_back(allowed.getA());
+        }
+      }
+    }
+  }
+}
+
+void Graph::exportFlow(std::ostream& out) {
+  unsigned long long int flowValue = 0;
+  for (unsigned int e : getNode(0).getOutEdges()) {
+    flowValue += getEdge(e).getFlow();
+  }
+  out << flowValue << '\n';
+  for (Edge& e : edges) {
+    if (e.getFlow() > 0) {
+      out << e.getId() << " " << e.getFlow() << '\n';
+    }
   }
 }
 
 // Main function
 int main() {
   std::string filename;
-
-  std::cout << "Please enter an input filename" << '\n';
+  std::string outputfile;
+  std::cout << "Please enter an input filename:" << '\n';
   std::cin >> filename;
-
+  std::cout << "Please enter an output filename or 'c' for console output:" << '\n';
+  std::cin >> outputfile;
   Graph g(filename);
+
+  g.pushRelabel();
+
+  if (outputfile == "c") {
+    g.exportFlow(std::cout);
+  } else {
+    std::fstream file(outputfile, std::ios_base::out);
+    g.exportFlow(file);
+  }
 
   return 0;
 }
