@@ -373,10 +373,7 @@ void Graph::pushRelabel() {
 }
 
 void Graph::exportFlow(std::ostream& out) {
-  unsigned long long int flowValue = 0;
-  for (unsigned int e : getNode(0).getOutEdges()) {
-    flowValue += getEdge(e).getFlow();
-  }
+  unsigned long long int flowValue = getNode(0).getOutFlow() - getNode(0).getInFlow();
   out << flowValue << '\n';
   for (Edge& e : edges) {
     if (e.getFlow() > 0) {
