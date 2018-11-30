@@ -43,8 +43,8 @@ public:
     unsigned int getId();
     friend void Graph::addOutEdge(Node& n, unsigned int e);
     friend void Graph::addInEdge(Node& n, unsigned int e);
-    std::vector<unsigned int> getOutEdges();
-    std::vector<unsigned int> getInEdges();
+    std::vector<unsigned int>& getOutEdges();
+    std::vector<unsigned int>& getInEdges();
     unsigned long long int getOutFlow();
     unsigned long long int getInFlow();
     friend void Graph::setFlow(Edge& e, unsigned int fl);
@@ -131,12 +131,12 @@ void Graph::addInEdge(Graph::Node& n, unsigned int e) {
 }
 
 // Gets the edges going out
-std::vector<unsigned int> Graph::Node::getOutEdges() {
+std::vector<unsigned int>& Graph::Node::getOutEdges() {
   return outEdges;
 }
 
 // Gets the edges going in
-std::vector<unsigned int> Graph::Node::getInEdges() {
+std::vector<unsigned int>& Graph::Node::getInEdges() {
   return inEdges;
 }
 
@@ -224,6 +224,99 @@ Graph::Edge& Graph::getEdge(unsigned int a) {
   return edges[a];
 }
 
+// Push Relabel help functions:
+
+// finds the minimum label of a neighboured node
+unsigned int findMinimumLabel(std::vector<unsigned int> labels, Graph& g, Graph::Node& active) {
+  unsigned int minimumLabel = 2*g.getNodeCount(); // will be made smaller
+
+  // search minimum label adjacent to the node in residual graph
+  for (unsigned int e : active.getOutEdges()) {
+    // Check if the edge is in the residual graph
+    if (g.getEdge(e).getFlow() < g.getEdge(e).getCapacity()) {
+      // Is the label smaller than the ones found?
+      if (labels[g.getEdge(e).getB()] < minimumLabel) {
+        minimumLabel = labels[g.getEdge(e).getB()];
+      }
+    }
+  }
+  for (unsigned int e : active.getInEdges()) {
+    // Check if the edge is in the residual graph
+    if (g.getEdge(e).getFlow() > 0) {
+      // Is the label smaller than the ones found?
+      if (labels[g.getEdge(e).getA()] < minimumLabel) {
+        minimumLabel = labels[g.getEdge(e).getA()];
+      }
+    }
+  }
+
+  return minimumLabel;
+}
+
+// updates the list of allowed edges for a node
+void updateAllowedEdges(std::vector<std::list<unsigned int>>& allowedEdges, std::vector<unsigned int>& labels, Graph& g, Graph::Node& active) {
+  // clear the list
+  allowedEdges[active.getId()].clear();
+
+  for (unsigned int e : active.getOutEdges()) {
+    // Check if the edge is in the residual graph
+    if (g.getEdge(e).getFlow() < g.getEdge(e).getCapacity()) {
+      // check if the edge is allowed
+      if (labels[active.getId()] == labels[g.getEdge(e).getB()]+1) {
+        allowedEdges[active.getId()].push_back(e);
+      }
+    }
+  }
+  for (unsigned int e : active.getInEdges()) {
+    // Check if the edge is in the residual graph
+    if (g.getEdge(e).getFlow() > 0) {
+      // Check if the edge is allowed
+      if (labels[active.getId()] == labels[g.getEdge(e).getA()]+1) {
+        allowedEdges[active.getId()].push_back(e);
+      }
+    }
+  }
+}
+
+// pushes the flow along an allowed edge
+void pushAllowedEdge(std::vector<std::list<unsigned int>>& allowedEdges, std::vector<unsigned int>& labels, std::vector<std::list<unsigned int>>& labelBucket, unsigned int maxLabel, Graph& g, Graph::Node& active, Graph::Edge& allowed) {
+  // The excess of the active node
+  unsigned int excess = active.getInFlow() - active.getOutFlow();
+
+  // Which kind of residual edge?
+  if (active.getId() == allowed.getA()) {
+    // Is the push saturating? Has the active state to be updated?
+    if (excess > allowed.getCapacity()-allowed.getFlow()) {
+      g.setFlow(allowed, allowed.getCapacity());
+      // The edge does not exist any more in the residual graph
+      allowedEdges[active.getId()].pop_front();
+    } else {
+      g.setFlow(allowed, allowed.getFlow() + excess);
+      // The node is no longer active
+      labelBucket[maxLabel].pop_front();
+    }
+    // We created a new active node if allowed is not connected to t
+    if (allowed.getB() > 1) {
+      labelBucket[labels[allowed.getB()]].push_back(allowed.getB());
+    }
+  } else {
+    // Is the push saturating? Has the active state to be updated?
+    if (excess > allowed.getFlow()) {
+      g.setFlow(allowed, 0);
+      // The edge does not exist any more in the residual graph
+      allowedEdges[active.getId()].pop_front();
+    } else {
+      g.setFlow(allowed, allowed.getFlow() - excess);
+      // The node is no longer active
+      labelBucket[maxLabel].pop_front();
+    }
+    // We created a new active node if allowed is not connected to t
+    if (allowed.getA() > 1) {
+      labelBucket[labels[allowed.getA()]].push_back(allowed.getA());
+    }
+  }
+}
+
 // Push relabel algorithm
 void Graph::pushRelabel() {
   // Maps a node id to a label
@@ -258,27 +351,7 @@ void Graph::pushRelabel() {
     Node& active = getNode(labelBucket[maxLabel].front());
     if (allowedEdges[active.getId()].empty()) {
       // relabel has to be done
-
-      unsigned int minimumLabel = 2*getNodeCount(); // will be made smaller
-      // search minimum label adjacent to the node in residual graph
-      for (unsigned int e : active.getOutEdges()) {
-        // Check if the edge is in the residual graph
-        if (getEdge(e).getFlow() < getEdge(e).getCapacity()) {
-          // Is the label smaller than the ones found?
-          if (labels[getEdge(e).getB()] < minimumLabel) {
-            minimumLabel = labels[getEdge(e).getB()];
-          }
-        }
-      }
-      for (unsigned int e : active.getInEdges()) {
-        // Check if the edge is in the residual graph
-        if (getEdge(e).getFlow() > 0) {
-          // Is the label smaller than the ones found?
-          if (labels[getEdge(e).getA()] < minimumLabel) {
-            minimumLabel = labels[getEdge(e).getA()];
-          }
-        }
-      }
+      unsigned int minimumLabel = findMinimumLabel(labels, *this, active);
 
       // Update label of the active node
       labels[active.getId()] = minimumLabel + 1;
@@ -287,28 +360,7 @@ void Graph::pushRelabel() {
       // Incoming edges in the residual graph may have become not allowed because
       // of the increased label of the active note. Therefore, it has to be checked,
       // whether an edge in the allowedEdges ist really is allowed!
-
-      // clear the list
-      allowedEdges[active.getId()].clear();
-
-      for (unsigned int e : active.getOutEdges()) {
-        // Check if the edge is in the residual graph
-        if (getEdge(e).getFlow() < getEdge(e).getCapacity()) {
-          // check if the edge is allowed
-          if (labels[active.getId()] == labels[getEdge(e).getB()]+1) {
-            allowedEdges[active.getId()].push_back(e);
-          }
-        }
-      }
-      for (unsigned int e : active.getInEdges()) {
-        // Check if the edge is in the residual graph
-        if (getEdge(e).getFlow() > 0) {
-          // Check if the edge is allowed
-          if (labels[active.getId()] == labels[getEdge(e).getA()]+1) {
-            allowedEdges[active.getId()].push_back(e);
-          }
-        }
-      }
+      updateAllowedEdges(allowedEdges, labels, *this, active);
 
       // Label bucket has to be updated
 
@@ -332,42 +384,7 @@ void Graph::pushRelabel() {
         continue;
       }
 
-      // The excess of the active node
-      unsigned int excess = active.getInFlow() - active.getOutFlow();
-
-
-      // Which kind of residual edge?
-      if (active.getId() == allowed.getA()) {
-        // Is the push saturating? Has the active state to be updated?
-        if (excess > allowed.getCapacity()-allowed.getFlow()) {
-          setFlow(allowed, allowed.getCapacity());
-          // The edge does not exist any more in the residual graph
-          allowedEdges[active.getId()].pop_front();
-        } else {
-          setFlow(allowed, allowed.getFlow() + excess);
-          // The node is no longer active
-          labelBucket[maxLabel].pop_front();
-        }
-        // We created a new active node if allowed is not connected to t
-        if (allowed.getB() > 1) {
-          labelBucket[labels[allowed.getB()]].push_back(allowed.getB());
-        }
-      } else {
-        // Is the push saturating? Has the active state to be updated?
-        if (excess > allowed.getFlow()) {
-          setFlow(allowed, 0);
-          // The edge does not exist any more in the residual graph
-          allowedEdges[active.getId()].pop_front();
-        } else {
-          setFlow(allowed, allowed.getFlow() - excess);
-          // The node is no longer active
-          labelBucket[maxLabel].pop_front();
-        }
-        // We created a new active node if allowed is not connected to t
-        if (allowed.getA() > 1) {
-          labelBucket[labels[allowed.getA()]].push_back(allowed.getA());
-        }
-      }
+      pushAllowedEdge(allowedEdges, labels, labelBucket, maxLabel, *this, active, allowed);
     }
   }
 }
