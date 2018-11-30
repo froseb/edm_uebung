@@ -214,7 +214,7 @@ void updateAllowedEdges(std::vector<std::list<unsigned int>>& allowedEdges, std:
 // pushes the flow along an allowed edge
 void pushAllowedEdge(std::vector<std::list<unsigned int>>& allowedEdges, std::vector<unsigned int>& labels, std::vector<std::list<unsigned int>>& labelBucket, unsigned int maxLabel, Graph& g, Graph::Node& active, Graph::Edge& allowed) {
   // The excess of the active node
-  unsigned int excess = active.getInFlow() - active.getOutFlow();
+  unsigned long long int excess = active.getInFlow() - active.getOutFlow();
 
   // Which kind of residual edge?
   if (active.getId() == allowed.getA()) {
@@ -227,6 +227,9 @@ void pushAllowedEdge(std::vector<std::list<unsigned int>>& allowedEdges, std::ve
       g.setFlow(allowed, allowed.getFlow() + excess);
       // The node is no longer active
       labelBucket[maxLabel].pop_front();
+      if (excess == allowed.getCapacity()-allowed.getFlow()) {
+        allowedEdges[active.getId()].pop_front();
+      }
     }
     // We created a new active node if allowed is not connected to t
     if (allowed.getB() > 1) {
@@ -242,6 +245,9 @@ void pushAllowedEdge(std::vector<std::list<unsigned int>>& allowedEdges, std::ve
       g.setFlow(allowed, allowed.getFlow() - excess);
       // The node is no longer active
       labelBucket[maxLabel].pop_front();
+      if (excess == allowed.getFlow()) {
+        allowedEdges[active.getId()].pop_front();
+      }
     }
     // We created a new active node if allowed is not connected to t
     if (allowed.getA() > 1) {
@@ -268,7 +274,7 @@ void Graph::pushRelabel() {
   // Maximize flow of edges adjacent to s and store their heads as active nodes
   for (unsigned int e : s.getOutEdges()) {
     setFlow(getEdge(e), getEdge(e).getCapacity());
-    if (getEdge(e).getFlow() > 0) {
+    if (getEdge(e).getFlow() > 0 && getEdge(e).getB() > 1) {
       labelBucket[0].push_back(getEdge(e).getB());
     }
   }
@@ -282,6 +288,11 @@ void Graph::pushRelabel() {
 
     // Get the active node
     Node& active = getNode(labelBucket[maxLabel].front());
+    if (active.getInFlow() == active.getOutFlow()) {
+      labelBucket[maxLabel].pop_front();
+      continue;
+    }
+
     if (allowedEdges[active.getId()].empty()) {
       // relabel has to be done
       unsigned int minimumLabel = findMinimumLabel(labels, *this, active);
