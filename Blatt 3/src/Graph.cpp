@@ -186,16 +186,13 @@ long long int redCost(Graph::Edge& e, std::vector<long long int>& potential) {
 unsigned int getNextActive(std::list<unsigned int>& open, std::vector<long long int>& dist) {
   unsigned int res;
 
-  std::list<unsigned int>::iterator it = open.begin();
-
   // the next element from the open list
-  std::list<unsigned int>::iterator minOpen = it;
-  do {
+  auto minOpen = open.begin();
+  for (auto it = open.begin(); it != open.end(); ++it) {
     if (dist[*it] < dist[*minOpen]) {
       minOpen = it;
     }
-    it = std::next(it);
-  } while (it != open.end());
+  }
 
   res = *minOpen;
   open.erase(minOpen);
