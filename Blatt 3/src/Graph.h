@@ -62,7 +62,7 @@ public:
   Node& getNode(unsigned int a);
   Edge& getEdge(unsigned int a);
   void exportMatching(std::ostream& out);
-  void dijkstra(std::list<unsigned int>& resEdges, std::vector<long long int>& potential);
+  void dijkstra(std::vector<long long int>& potential);
   void perfectMatching();
   friend std::ostream& operator<<(std::ostream& out, const Graph& o);
 private:

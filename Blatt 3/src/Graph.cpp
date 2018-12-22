@@ -200,8 +200,8 @@ unsigned int getNextActive(std::list<unsigned int>& open, std::vector<long long 
   return res;
 }
 
-// pushes the shortest path edges from s to t into resEdges and updates the potential function
-void Graph::dijkstra(std::list<unsigned int>& resEdges, std::vector<long long int>& potential){
+// Augments along the shortest path from s to t and updates the potential function
+void Graph::dijkstra(std::vector<long long int>& potential){
   // Stores all the distances from s to any node
   std::vector<long long int> dist(getNodeCount(), -1);
   dist[getNodeCount()-2] = 0;
@@ -246,7 +246,7 @@ void Graph::dijkstra(std::list<unsigned int>& resEdges, std::vector<long long in
   // Write result into resEdges
   unsigned int tmp = getNodeCount()-1;
   while (tmp != getNodeCount()-2) {
-    resEdges.push_front(prev[tmp]);
+    setActive(getEdge(prev[tmp]), !getEdge(prev[tmp]).isActive());
     if (tmp == getEdge(prev[tmp]).getA()) {
       tmp = getEdge(prev[tmp]).getB();
     } else {
@@ -278,13 +278,7 @@ void Graph::perfectMatching() {
     }
   }
 
-  std::list<unsigned int> resEdges;
-
   while (getNode(getNodeCount()-2).getOutFlow() != (getNodeCount()-2)/2) {
-    dijkstra(resEdges, potential);
-    for (unsigned int e : resEdges) {
-      setActive(getEdge(e), !getEdge(e).isActive());
-    }
-    resEdges.clear();
+    dijkstra(potential);
   }
 }
