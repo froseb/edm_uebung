@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 
   Graph g(filename);
 
-  //g.pushRelabel();
+  g.perfectMatching();
 
   if (!outputfileSpecified) {
     g.exportMatching(std::cout);
@@ -48,6 +48,5 @@ int main(int argc, char** argv) {
     std::fstream file(outputfile, std::ios_base::out);
     g.exportMatching(file);
   }
-
   return 0;
 }
