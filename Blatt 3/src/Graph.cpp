@@ -101,6 +101,10 @@ Graph::Graph(std::string filename) {
   // Set Node Count of the Graph
   unsigned int nc;
   file >> nc;
+  if (nc%2 != 0) {
+    throw(std::runtime_error("Tried to load an evenly partitioned bipartite graph with odd node count."));
+    return;
+  }
   nodeCount = nc + 2; // id of s: getNodeCount-2, id of t: getNodeCount-1
 
   // Add node objects to nodes vector
@@ -113,6 +117,10 @@ Graph::Graph(std::string filename) {
   unsigned int a, b;
   int cost;
   while (file >> a >> b >> cost) {
+    if (a>=nc/2 || b<nc/2) {
+      throw(std::runtime_error("Tried to add an edge between nodes of the wrong partition."));
+      return;
+    }
     addEdge(a, b, cost);
   }
 
@@ -201,7 +209,7 @@ unsigned int getNextActive(std::list<unsigned int>& open, std::vector<long long 
 }
 
 // Augments along the shortest path from s to t and updates the potential function
-void Graph::dijkstra(std::vector<long long int>& potential){
+void Graph::dijkstra(std::vector<long long int>& potential) {
   // Stores all the distances from s to any node
   std::vector<long long int> dist(getNodeCount(), -1);
   dist[getNodeCount()-2] = 0;
@@ -243,7 +251,7 @@ void Graph::dijkstra(std::vector<long long int>& potential){
     return;
   }
 
-  // Write result into resEdges
+  // Augment along the path
   unsigned int tmp = getNodeCount()-1;
   while (tmp != getNodeCount()-2) {
     setActive(getEdge(prev[tmp]), !getEdge(prev[tmp]).isActive());
